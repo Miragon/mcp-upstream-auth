@@ -1,0 +1,51 @@
+# fly.toml — single-machine deployment for the MCP proxy.
+#
+# The proxy holds per-user upstream sessions in memory, so it MUST run
+# as a single instance. Don't scale this app horizontally — sticky load
+# balancing isn't enough since OAuth callbacks come from a separate IP
+# (the user's browser) and would land on the wrong machine.
+#
+# Before first deploy:
+#   fly launch --no-deploy --copy-config   # creates the app
+#   fly deploy
+#
+# Update BASE_URL below to match the actual app hostname Fly assigns.
+
+app = "mcp-proxy-dh"
+primary_region = "fra"
+
+[build]
+
+[env]
+  # Public origin of the proxy. Used by mcp-use to build the OAuth
+  # discovery URLs and by src/index.ts to build the upstream OAuth
+  # callback URL (https://<app>.fly.dev/oauth/callback/<server>).
+  BASE_URL = "https://mcp-proxy-dh.fly.dev"
+  WORKOS_SUBDOMAIN = "sure-pulse-87-staging.authkit.app"
+  PORT = "3000"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  # Single-machine, in-memory state — never auto-stop.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/.well-known/oauth-protected-resource"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512
+
+[deploy]
+  # Replace the running machine in one shot — brief downtime, but no
+  # two-machine overlap that would split sessions across instances.
+  strategy = "immediate"

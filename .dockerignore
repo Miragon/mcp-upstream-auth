@@ -1,0 +1,12 @@
+node_modules
+npm-debug.log
+.mcp-use
+.client-info*.json
+.claude
+.git
+.gitignore
+.dockerignore
+Dockerfile
+fly.toml
+README.md
+dist
